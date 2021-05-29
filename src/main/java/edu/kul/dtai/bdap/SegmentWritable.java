@@ -4,10 +4,9 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.yarn.webapp.hamlet.Hamlet.P;
+import org.apache.hadoop.io.Writable;
 
-public class SegmentWritable implements WritableComparable<SegmentWritable> {
+public class SegmentWritable implements Writable {
 
   private int id;
   private long startTimestamp;
@@ -28,6 +27,26 @@ public class SegmentWritable implements WritableComparable<SegmentWritable> {
     this.endPoint.setLatitude(in.readDouble());
     this.endPoint.setLongitude(in.readDouble());
     this.endStatus = in.readBoolean();
+  }
+
+  @Override
+  public void write(DataOutput out) throws IOException {
+    out.writeInt(this.id);
+    out.writeLong(this.startTimestamp);
+    out.writeDouble(this.startPoint.getLatitude());
+    out.writeDouble(this.startPoint.getLongitude());
+    out.writeBoolean(this.startStatus);
+    out.writeLong(this.endTimestamp);
+    out.writeDouble(this.endPoint.getLatitude());
+    out.writeDouble(this.endPoint.getLongitude());
+    out.writeBoolean(this.endStatus);
+  }
+
+  @Override
+  public String toString() {
+    return String.format("%d,%d,%f,%f,%b,%d,%f,%f,%b", this.id, this.startTimestamp, this.startPoint.getLatitude(),
+        this.startPoint.getLongitude(), this.startStatus, this.endTimestamp, this.endPoint.getLatitude(),
+        this.endPoint.getLongitude(), this.endStatus);
   }
 
   public int getId() {
@@ -58,19 +77,6 @@ public class SegmentWritable implements WritableComparable<SegmentWritable> {
     return this.endPoint;
   }
 
-  @Override
-  public void write(DataOutput out) throws IOException {
-    out.writeInt(this.id);
-    out.writeLong(this.startTimestamp);
-    out.writeDouble(this.startPoint.getLatitude());
-    out.writeDouble(this.startPoint.getLongitude());
-    out.writeBoolean(this.startStatus);
-    out.writeLong(this.endTimestamp);
-    out.writeDouble(this.endPoint.getLatitude());
-    out.writeDouble(this.endPoint.getLongitude());
-    out.writeBoolean(this.endStatus);
-  }
-
   public void parseLine(String line) throws IOException {
 
     // Remove all double-quotes from line
@@ -89,26 +95,6 @@ public class SegmentWritable implements WritableComparable<SegmentWritable> {
     this.endPoint.setLatitude(StringHelper.parseDouble(parts[6]));
     this.endPoint.setLongitude(StringHelper.parseDouble(parts[7]));
     this.endStatus = StringHelper.parseStatus(parts[8]);
-  }
-
-  @Override
-  public int compareTo(SegmentWritable o) {
-    if (this.id == o.id) {
-      return 0;
-    } else {
-      if (this.id < o.id) {
-        return -1;
-      } else {
-        return 1;
-      }
-    }
-  }
-
-  @Override
-  public String toString() {
-    return String.format("%d,%d,%f,%f,%b,%d,%f,%f,%b", this.id, this.startTimestamp, this.startPoint.getLatitude(),
-        this.startPoint.getLongitude(), this.startStatus, this.endTimestamp, this.endPoint.getLatitude(),
-        this.endPoint.getLongitude(), this.endStatus);
   }
 
 }

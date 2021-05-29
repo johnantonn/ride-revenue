@@ -14,7 +14,7 @@ import java.util.TimeZone;
 public class StringHelper {
 
 	private static Pattern quotes = Pattern.compile("'");
-	private static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+	private static SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	private static TimeZone timeZoneLA = TimeZone.getTimeZone("America/Los_Angeles");
 
 	/**
@@ -56,6 +56,20 @@ public class StringHelper {
 	}
 
 	/**
+	 * Parses a string into a long. Returns 0 if the value cannot be parsed.
+	 * 
+	 * @param csvField
+	 * @return
+	 */
+	public static long parseLong(String csvField) {
+		try {
+			return Long.parseLong(csvField);
+		} catch (Exception e) {
+			return 0l;
+		}
+	}
+
+	/**
 	 * Parses a "E" (false) or "M" (true) valued string into a boolean. Returns
 	 * false if value is different than "M".
 	 * 
@@ -76,7 +90,7 @@ public class StringHelper {
 	 * @param csvField
 	 * @return
 	 */
-	public static Long parseDate(String csvField) {
+	public static long parseDate(String csvField) {
 		try {
 			dateFormat.setTimeZone(timeZoneLA);
 			Date parsedDate = dateFormat.parse(csvField);
