@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.TimeZone;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -55,13 +56,12 @@ public class RideRevenueCalculator {
                         tripCounter--;
                     trip = new TripWritable();
                     trip.setId(++tripCounter);
-                    trip.setStartTimestamp(seg.getEndTimestamp());
-                    trip.addStop(seg.getEndPoint());
+                    trip.setStartTimestamp(seg.getStartTimestamp());
+                    trip.addStop(seg.getStartPoint());
                 } else if (seg.getStartStatus() == true && seg.getEndStatus() == false) {
                     // Existing trip ends
                     if (trip != null) {
                         trip.setEndTimestamp(seg.getStartTimestamp());
-                        trip.addStop(seg.getStartPoint());
                         id = new IntWritable(key.getId());
                         context.write(id, trip);
                         trip = null;
@@ -79,17 +79,19 @@ public class RideRevenueCalculator {
     public static class AirportRidesMapper extends Mapper<Object, Text, Text, TripWritable> {
 
         private Point2D airportLocation = new Point2D(37.62131, -122.37896);
-        private SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        private static TimeZone timeZoneLA = TimeZone.getTimeZone("America/Los_Angeles");
         private TripWritable trip;
         private final static double minDist = 1; // 1km
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
             trip = new TripWritable();
             trip.parseLine(value.toString());
+            dateFormat.setTimeZone(timeZoneLA);
             for (Point2D stop : trip.getStops()) {
-                double dist = distGPS(airportLocation, stop);
+                double dist = flatSurfDist(airportLocation, stop);
                 if (dist < minDist) {
-                    Text date = new Text(this.simpleDateFormat.format(new Date(trip.getStartTimestamp())));
+                    Text date = new Text(this.dateFormat.format(new Date(trip.getStartTimestamp())));
                     context.write(date, trip);
                     break;
                 }
@@ -110,7 +112,7 @@ public class RideRevenueCalculator {
             for (TripWritable trip : trips) {
                 List<Point2D> stops = trip.getStops();
                 for (int i = 1; i < trip.getNumStops(); i++) {
-                    sum += distGPS(stops.get(i), stops.get(i - 1));
+                    sum += flatSurfDist(stops.get(i), stops.get(i - 1));
                 }
             }
 
@@ -167,12 +169,16 @@ public class RideRevenueCalculator {
         return job;
     }
 
-    public static double distGPS(Point2D p1, Point2D p2) {
+    public static double flatSurfDist(Point2D p1, Point2D p2) {
         double R = 6371.009; // earth's radius in km
-        double dPhi = Math.PI * (p2.getLatitude() - p1.getLatitude()) / 180;
-        double dLambda = Math.PI * (p2.getLongitude() - p1.getLongitude()) / 180;
-        double dist = R * Math.sqrt(Math.pow(dPhi, 2) + Math.pow(dLambda, 2));
-        return dist;
+        double phi1 = Math.toRadians(p1.getLatitude());
+        double phi2 = Math.toRadians(p2.getLatitude());
+        double dPhi = Math.toRadians(p2.getLatitude() - p1.getLatitude());
+        double dLambda = Math.toRadians(p2.getLongitude() - p1.getLongitude());
+        double a = Math.sin(dPhi / 2) * Math.sin(dPhi / 2)
+                + Math.sin(dLambda / 2) * Math.sin(dLambda / 2) * Math.cos(phi1) * Math.cos(phi2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
     }
 
     public static void main(String[] args) throws Exception {
