@@ -62,6 +62,7 @@ public class RideRevenueCalculator {
                     // Existing trip ends
                     if (trip != null) {
                         trip.setEndTimestamp(seg.getStartTimestamp());
+                        trip.addStop(seg.getStartPoint());
                         id = new IntWritable(key.getId());
                         context.write(id, trip);
                         trip = null;
@@ -124,7 +125,7 @@ public class RideRevenueCalculator {
 
     public static Job runTripConstructor(Path input, Path output) throws Exception {
 
-        Job job = Job.getInstance(new Configuration(), "Construct trips");
+        Job job = Job.getInstance(new Configuration(), "Trip Construction");
         job.setJarByClass(RideRevenueCalculator.class);
 
         // Mapper configuration
@@ -141,6 +142,7 @@ public class RideRevenueCalculator {
         job.setReducerClass(TripConstructorReducer.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(TripWritable.class);
+        job.setNumReduceTasks(8);
 
         FileInputFormat.setInputPaths(job, input);
         FileOutputFormat.setOutputPath(job, output);
@@ -150,7 +152,7 @@ public class RideRevenueCalculator {
 
     public static Job runRevenueCalculator(Path input, Path output) throws Exception {
 
-        Job job = Job.getInstance(new Configuration(), "Compute ride revenue");
+        Job job = Job.getInstance(new Configuration(), "Revenue Calculation");
         job.setJarByClass(RideRevenueCalculator.class);
 
         // Mapper configuration
@@ -162,6 +164,7 @@ public class RideRevenueCalculator {
         job.setReducerClass(RevenueCalculatorReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(DoubleWritable.class);
+        job.setNumReduceTasks(8);
 
         FileInputFormat.setInputPaths(job, input);
         FileOutputFormat.setOutputPath(job, output);
@@ -185,21 +188,25 @@ public class RideRevenueCalculator {
 
         Path input = new Path(args[0]);
         Path output1 = new Path(args[1], "pass1");
+        long t1, t2;
 
         // Job 1
+        t1 = System.currentTimeMillis();
         Job tripConstructorJob = runTripConstructor(input, output1);
         if (!tripConstructorJob.waitForCompletion(true)) {
             System.exit(1);
         }
+        t2 = System.currentTimeMillis();
+        System.out.println("Job 1 finished in: " + (t2 - t1) / 1000 + " seconds.");
 
         // Job 2
-        // Take output1 (trips) and compute revenue
-        // Mapper will filter airport rides
-        // Reducer will compute distance and revenue
+        t1 = System.currentTimeMillis();
         Job revenueCalculatorJob = runRevenueCalculator(output1, new Path(args[1], "pass2"));
         if (!revenueCalculatorJob.waitForCompletion(true)) {
             System.exit(2);
         }
+        t2 = System.currentTimeMillis();
+        System.out.println("Job 2 finished in: " + (t2 - t1) / 1000 + " seconds.");
 
     }
 }
