@@ -8,13 +8,13 @@ import org.apache.hadoop.io.Writable;
 
 public class SegmentWritable implements Writable {
 
-  private int id;
-  private long startTimestamp;
-  private long endTimestamp;
-  private Point2D startPoint = new Point2D();
-  private Point2D endPoint = new Point2D();;
-  private boolean startStatus;
-  private boolean endStatus;
+  private int id; // taxi id
+  private long startTimestamp; // start timestamp
+  private long endTimestamp; // end timestamp
+  private Point2D startPoint = new Point2D(); // start location
+  private Point2D endPoint = new Point2D();; // end location
+  private boolean startStatus; // true => full, false => empty
+  private boolean endStatus; // true => full, false => empty
 
   @Override
   public void readFields(DataInput in) throws IOException {
@@ -82,10 +82,10 @@ public class SegmentWritable implements Writable {
     // Remove all double-quotes from line
     line = StringHelper.removeSingleQuotes(line);
 
-    // Split on commas, unless they were escaped with a backslash
-    // Negative limit param "-1" to keep empty values in resulting array
-    String[] parts = line.split("(?<!\\\\),", -1);
+    // Split on commas
+    String[] parts = line.split(",");
 
+    // Assign parts to segment attributes
     this.id = StringHelper.parseInt(parts[0]);
     this.startTimestamp = StringHelper.parseDate(parts[1]);
     this.startPoint.setLatitude(StringHelper.parseDouble(parts[2]));

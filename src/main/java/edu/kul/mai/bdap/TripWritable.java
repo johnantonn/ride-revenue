@@ -10,11 +10,11 @@ import org.apache.hadoop.io.Writable;
 
 public class TripWritable implements Writable {
 
-  private int id;
-  private long startTimestamp;
-  private long endTimestamp;
-  private int numStops;
-  private List<Point2D> stops;
+  private int id; // taxi id
+  private long startTimestamp; // start timestamp
+  private long endTimestamp; // end timestamp
+  private int numStops; // number of stops
+  private List<Point2D> stops; // list of stops
 
   public TripWritable() {
     this.id = -1;
@@ -99,10 +99,10 @@ public class TripWritable implements Writable {
 
   public void parseLine(String line) throws IOException {
 
-    // Split on commas, unless they were escaped with a backslash
-    // Negative limit param "-1" to keep empty values in resulting array
+    // Split on commas
     String[] parts = line.split("\t")[1].split(",");
 
+    // Assign parts to trip attributes
     this.id = StringHelper.parseInt(parts[0]);
     this.startTimestamp = StringHelper.parseLong(parts[1]);
     this.endTimestamp = StringHelper.parseLong(parts[2]);
