@@ -29,12 +29,21 @@ public class RideRevenueCalculator {
                 // Parse segment
                 segment.parseLine(value.toString());
                 // Check if segment is valid
-                if (segment.getStartStatus() || segment.getEndStatus()) {
+                if (isValid(segment)) {
                     compositeKey.set(segment.getId(), segment.getStartTimestamp());
                     context.write(compositeKey, segment);
                 }
             } catch (Exception e) {
                 System.out.println(e);
+            }
+        }
+
+        private boolean isValid(SegmentWritable seg) {
+            if (seg.getStartStatus() || seg.getEndStatus()) {
+                return (seg.getStartPoint().getLongitude() < -100) && (seg.getEndPoint().getLongitude() < -100)
+                        && (seg.getEndTimestamp() - seg.getStartTimestamp() < 1000 * 3600);
+            } else {
+                return false;
             }
         }
     }
@@ -47,13 +56,26 @@ public class RideRevenueCalculator {
 
         public void reduce(CompositeKey key, Iterable<SegmentWritable> segments, Context context)
                 throws IOException, InterruptedException {
+
+            // Helper variables
             int tripCounter = 0;
+            SegmentWritable prevSeg = new SegmentWritable();
+
             // Loop over sorted segments
             for (SegmentWritable seg : segments) {
                 // Middle segment (trip continues)
                 if (seg.getStartStatus() == true && seg.getEndStatus() == true) {
                     if (trip != null) {
-                        trip.addStop(seg.getStartPoint());
+                        if (seg.getStartTimestamp() > prevSeg.getEndTimestamp()) {
+                            trip.addStop(seg.getStartPoint());
+                        }
+                        // Check speed
+                        if (speed(seg) > 200) {
+                            trip = null; // invalidate trip
+                            continue;
+                        }
+                        trip.addStop(seg.getEndPoint());
+                        prevSeg = seg;
                     }
                 }
                 // Start segment (trip starts)
@@ -62,18 +84,19 @@ public class RideRevenueCalculator {
                         tripCounter--;
                     trip = new TripWritable();
                     trip.setId(++tripCounter);
-                    trip.setStartTimestamp(seg.getStartTimestamp());
-                    trip.addStop(seg.getStartPoint());
+                    trip.setStartTimestamp(seg.getEndTimestamp());
+                    trip.addStop(seg.getEndPoint());
+                    prevSeg = seg;
                 }
                 // End segment (trip ends)
                 else if (seg.getStartStatus() == true && seg.getEndStatus() == false) {
                     if (trip != null) {
                         trip.setEndTimestamp(seg.getStartTimestamp());
-                        trip.addStop(seg.getStartPoint());
+                        if (seg.getStartTimestamp() > prevSeg.getEndTimestamp()) {
+                            trip.addStop(seg.getStartPoint());
+                        }
                         id = new IntWritable(key.getId());
-                        // Check if trip is valid
-                        if (isValid(trip))
-                            context.write(id, trip);
+                        context.write(id, trip);
                         trip = null;
                     }
                 }
@@ -87,9 +110,10 @@ public class RideRevenueCalculator {
 
         }
 
-        private boolean isValid(TripWritable ride) {
-            return true;
-            // TODO: add checks
+        private double speed(SegmentWritable seg) {
+            double dist = flatSurfDist(seg.getStartPoint(), seg.getEndPoint());
+            double td = (double) (seg.getEndTimestamp() - seg.getStartTimestamp()) / 3600000;
+            return dist / td;
         }
     }
 
