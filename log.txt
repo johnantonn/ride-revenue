@@ -1,2 +1,0 @@
-Job 1 finished in: 5 seconds.
-Job 2 finished in: 5 seconds.

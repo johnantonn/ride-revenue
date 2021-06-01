@@ -25,10 +25,14 @@ public class RideRevenueCalculator {
         private SegmentWritable segment = new SegmentWritable();
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-            segment.parseLine(value.toString());
-            if (segment.getStartStatus() || segment.getEndStatus()) {
-                compositeKey.set(segment.getId(), segment.getStartTimestamp());
-                context.write(compositeKey, segment);
+            try {
+                segment.parseLine(value.toString());
+                if (segment.getStartStatus() || segment.getEndStatus()) {
+                    compositeKey.set(segment.getId(), segment.getStartTimestamp());
+                    context.write(compositeKey, segment);
+                }
+            } catch (Exception e) {
+                System.out.println(e);
             }
         }
     }
@@ -87,16 +91,20 @@ public class RideRevenueCalculator {
         private final static double minDist = 1; // 1km
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-            trip = new TripWritable();
-            trip.parseLine(value.toString());
-            dateFormat.setTimeZone(timeZoneLA);
-            for (Point2D stop : trip.getStops()) {
-                double dist = flatSurfDist(airportLocation, stop);
-                if (dist < minDist) {
-                    Text date = new Text(this.dateFormat.format(new Date(trip.getStartTimestamp())));
-                    context.write(date, trip);
-                    break;
+            try {
+                trip = new TripWritable();
+                trip.parseLine(value.toString());
+                dateFormat.setTimeZone(timeZoneLA);
+                for (Point2D stop : trip.getStops()) {
+                    double dist = flatSurfDist(airportLocation, stop);
+                    if (dist < minDist) {
+                        Text date = new Text(this.dateFormat.format(new Date(trip.getStartTimestamp())));
+                        context.write(date, trip);
+                        break;
+                    }
                 }
+            } catch (Exception e) {
+                System.out.println(e);
             }
         }
 
