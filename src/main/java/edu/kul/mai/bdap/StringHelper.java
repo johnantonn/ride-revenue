@@ -1,4 +1,4 @@
-package edu.kul.dtai.bdap;
+package edu.kul.mai.bdap;
 
 import java.util.regex.Pattern;
 import java.text.SimpleDateFormat;

@@ -1,4 +1,4 @@
-package edu.kul.dtai.bdap;
+package edu.kul.mai.bdap;
 
 import java.io.DataInput;
 import java.io.DataOutput;

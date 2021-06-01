@@ -1,4 +1,4 @@
-package edu.kul.dtai.bdap;
+package edu.kul.mai.bdap;
 
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;

@@ -1,4 +1,4 @@
-package edu.kul.dtai.bdap;
+package edu.kul.mai.bdap;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -64,6 +64,7 @@ public class RideRevenueCalculator {
                         trip.setEndTimestamp(seg.getStartTimestamp());
                         trip.addStop(seg.getStartPoint());
                         id = new IntWritable(key.getId());
+                        // TODO: if trip is valid then:
                         context.write(id, trip);
                         trip = null;
                     }
