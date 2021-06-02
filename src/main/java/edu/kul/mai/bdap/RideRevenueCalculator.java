@@ -23,6 +23,10 @@ public class RideRevenueCalculator {
 
         private CompositeKey compositeKey = new CompositeKey();
         private SegmentWritable segment = new SegmentWritable();
+        private final static long segDurLowerLim = 5 * 1000; // 5 seconds in ms
+        private final static long segDurUpperLim = 10 * 60 * 1000; // 10 minutes in ms
+        private final static int minLat = 30; // 30 degrees
+        private final static int maxLon = -100; // -100 degrees
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
             try {
@@ -40,8 +44,10 @@ public class RideRevenueCalculator {
 
         private boolean isValid(SegmentWritable seg) {
             if (seg.getStartStatus() || seg.getEndStatus()) {
-                return (seg.getStartPoint().getLongitude() < -100) && (seg.getEndPoint().getLongitude() < -100)
-                        && (seg.getEndTimestamp() - seg.getStartTimestamp() < 1000 * 3600);
+                long segDuration = seg.getEndTimestamp() - seg.getStartTimestamp();
+                return (seg.getStartPoint().getLatitude() > minLat) && (seg.getStartPoint().getLongitude() < -maxLon)
+                        && (seg.getEndPoint().getLatitude() > minLat) && (seg.getEndPoint().getLongitude() < -maxLon)
+                        && (segDuration > segDurLowerLim) && (segDuration < segDurUpperLim);
             } else {
                 return false;
             }
@@ -53,29 +59,26 @@ public class RideRevenueCalculator {
 
         private IntWritable id;
         private TripWritable trip = null;
+        private final static double speedLimit = 200; // km
 
         public void reduce(CompositeKey key, Iterable<SegmentWritable> segments, Context context)
                 throws IOException, InterruptedException {
 
             // Helper variables
             int tripCounter = 0;
-            SegmentWritable prevSeg = new SegmentWritable();
 
             // Loop over sorted segments
             for (SegmentWritable seg : segments) {
                 // Middle segment (trip continues)
                 if (seg.getStartStatus() == true && seg.getEndStatus() == true) {
                     if (trip != null) {
-                        if (seg.getStartTimestamp() > prevSeg.getEndTimestamp()) {
-                            trip.addStop(seg.getStartPoint());
-                        }
                         // Check speed
-                        if (speed(seg) > 200) {
+                        if (speed(seg) > speedLimit) {
                             trip = null; // invalidate trip
                             continue;
                         }
+                        // Add stop
                         trip.addStop(seg.getEndPoint());
-                        prevSeg = seg;
                     }
                 }
                 // Start segment (trip starts)
@@ -86,15 +89,11 @@ public class RideRevenueCalculator {
                     trip.setId(++tripCounter);
                     trip.setStartTimestamp(seg.getEndTimestamp());
                     trip.addStop(seg.getEndPoint());
-                    prevSeg = seg;
                 }
                 // End segment (trip ends)
                 else if (seg.getStartStatus() == true && seg.getEndStatus() == false) {
                     if (trip != null) {
                         trip.setEndTimestamp(seg.getStartTimestamp());
-                        if (seg.getStartTimestamp() > prevSeg.getEndTimestamp()) {
-                            trip.addStop(seg.getStartPoint());
-                        }
                         id = new IntWritable(key.getId());
                         context.write(id, trip);
                         trip = null;
@@ -112,17 +111,17 @@ public class RideRevenueCalculator {
 
         private double speed(SegmentWritable seg) {
             double dist = flatSurfDist(seg.getStartPoint(), seg.getEndPoint());
-            double td = (double) (seg.getEndTimestamp() - seg.getStartTimestamp()) / 3600000;
+            double td = (double) (seg.getEndTimestamp() - seg.getStartTimestamp()) / 3600000; // v = dx/dt
             return dist / td;
         }
     }
 
     public static class AirportRidesMapper extends Mapper<Object, Text, Text, TripWritable> {
 
-        private Point2D airportLocation = new Point2D(37.62131, -122.37896); // SFO gps coordinates
+        private TripWritable trip; // trip object to be used iteratively
+        private Point2D airportLocation = new Point2D(37.62131, -122.37896); // SFO coordinates
         private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         private static TimeZone timeZoneLA = TimeZone.getTimeZone("America/Los_Angeles");
-        private TripWritable trip; // trip object to be used iteratively
         private final static double minDist = 1; // 1km
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
