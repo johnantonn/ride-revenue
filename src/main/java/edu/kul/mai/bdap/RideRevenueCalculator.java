@@ -23,8 +23,7 @@ public class RideRevenueCalculator {
 
         private CompositeKey compositeKey = new CompositeKey();
         private SegmentWritable segment = new SegmentWritable();
-        private final static long segDurLowerLim = 5 * 1000; // 5 seconds in ms
-        private final static long segDurUpperLim = 10 * 60 * 1000; // 10 minutes in ms
+        private final static long segDurUpperLim = 60 * 60 * 1000; // 1 hour in ms
         private final static int minLat = 30; // 30 degrees
         private final static int maxLon = -100; // -100 degrees
 
@@ -47,7 +46,7 @@ public class RideRevenueCalculator {
                 long segDuration = seg.getEndTimestamp() - seg.getStartTimestamp();
                 return (seg.getStartPoint().getLatitude() > minLat) && (seg.getStartPoint().getLongitude() < -maxLon)
                         && (seg.getEndPoint().getLatitude() > minLat) && (seg.getEndPoint().getLongitude() < -maxLon)
-                        && (segDuration > segDurLowerLim) && (segDuration < segDurUpperLim);
+                        && (segDuration < segDurUpperLim);
             } else {
                 return false;
             }
@@ -93,7 +92,8 @@ public class RideRevenueCalculator {
                 // End segment (trip ends)
                 else if (seg.getStartStatus() == true && seg.getEndStatus() == false) {
                     if (trip != null) {
-                        trip.setEndTimestamp(seg.getStartTimestamp());
+                        trip.addStop(seg.getEndPoint());
+                        trip.setEndTimestamp(seg.getEndTimestamp());
                         id = new IntWritable(key.getId());
                         context.write(id, trip);
                         trip = null;
@@ -153,18 +153,22 @@ public class RideRevenueCalculator {
 
         public void reduce(Text dt, Iterable<TripWritable> trips, Context context)
                 throws IOException, InterruptedException {
-            double sum = 0;
+            double totalRev = 0;
             DoubleWritable result = new DoubleWritable(0);
+
             // Loop over trips
             for (TripWritable trip : trips) {
                 List<Point2D> stops = trip.getStops();
+                double totalDist = 0;
                 // Loop over stops
                 for (int i = 1; i < trip.getNumStops(); i++) {
-                    sum += flatSurfDist(stops.get(i), stops.get(i - 1)); // sum distance
+                    totalDist += flatSurfDist(stops.get(i), stops.get(i - 1));
                 }
+                double tripRev = constFee + totalDist * costPerKm; // trip revenue
+                totalRev += tripRev; // total revenue
             }
-            // Calculate total trip cost
-            result.set(constFee + sum * costPerKm);
+            // Write results
+            result.set(totalRev);
             context.write(dt, result);
         }
 
@@ -190,7 +194,7 @@ public class RideRevenueCalculator {
         job.setReducerClass(TripConstructorReducer.class);
         job.setOutputKeyClass(IntWritable.class);
         job.setOutputValueClass(TripWritable.class);
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(8);
 
         // Input/Output paths
         FileInputFormat.setInputPaths(job, input);
@@ -214,7 +218,7 @@ public class RideRevenueCalculator {
         job.setReducerClass(RevenueCalculatorReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(DoubleWritable.class);
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(8);
 
         // Input/Output paths
         FileInputFormat.setInputPaths(job, input);

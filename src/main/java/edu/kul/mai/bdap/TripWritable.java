@@ -28,6 +28,7 @@ public class TripWritable implements Writable {
     this.startTimestamp = in.readLong();
     this.endTimestamp = in.readLong();
     this.numStops = in.readInt();
+    this.stops = new ArrayList<Point2D>();
     for (int i = 0; i < numStops; i++) {
       Point2D stop = new Point2D(in.readDouble(), in.readDouble());
       this.stops.add(stop);
@@ -107,6 +108,7 @@ public class TripWritable implements Writable {
     this.startTimestamp = StringHelper.parseLong(parts[1]);
     this.endTimestamp = StringHelper.parseLong(parts[2]);
     this.numStops = StringHelper.parseInt(parts[3]);
+    this.stops = new ArrayList<Point2D>();
     for (int i = 0; i < this.numStops; i++) {
       this.stops
           .add(new Point2D(StringHelper.parseDouble(parts[4 + 2 * i]), StringHelper.parseDouble(parts[4 + 2 * i + 1])));
