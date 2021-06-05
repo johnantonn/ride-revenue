@@ -17,8 +17,18 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+/**
+ * The MapReduce driver class. It defines two jobs: job 1 filters segments, uses
+ * secondary sort and constructs trips from segments; job 2 identifies airport
+ * rides and computes their daily revenue.
+ */
 public class RideRevenueCalculator {
 
+    /**
+     * Job 1 mapper: filters E-E segments and segments with erroneous values,
+     * creates a composite key [id, timestamp] for sorting filtered segments based
+     * on date.
+     */
     public static class CompositeKeyCreationMapper extends Mapper<Object, Text, CompositeKey, SegmentWritable> {
 
         private CompositeKey compositeKey = new CompositeKey();
@@ -41,6 +51,7 @@ public class RideRevenueCalculator {
             }
         }
 
+        // Filters segments with E-E status and/or erroneous data points
         private boolean isValid(SegmentWritable seg) {
             if (seg.getStartStatus() || seg.getEndStatus()) {
                 long segDuration = seg.getEndTimestamp() - seg.getStartTimestamp();
@@ -53,6 +64,11 @@ public class RideRevenueCalculator {
         }
     }
 
+    /**
+     * Job 1 reducer: Constructs complete trips from individual segments based on
+     * status sequences [E-M, (M-M), ..., M-E]. Disregards trips with segments of
+     * speed > 200km/h.
+     */
     public static class TripConstructorReducer
             extends Reducer<CompositeKey, SegmentWritable, IntWritable, TripWritable> {
 
@@ -109,6 +125,8 @@ public class RideRevenueCalculator {
 
         }
 
+        // Computes the speed of a segment by dividing the point-distance with the time
+        // difference.
         private double speed(SegmentWritable seg) {
             double dist = flatSurfDist(seg.getStartPoint(), seg.getEndPoint());
             double td = (double) (seg.getEndTimestamp() - seg.getStartTimestamp()) / 3600000; // v = dx/dt
@@ -116,6 +134,10 @@ public class RideRevenueCalculator {
         }
     }
 
+    /**
+     * Job 2 mapper: identifies (filters) airport rides by computing the distance of
+     * individual stops from the SF airport. Local timezone is taken into account.
+     */
     public static class AirportRidesMapper extends Mapper<Object, Text, Text, TripWritable> {
 
         private TripWritable trip; // trip object to be used iteratively
@@ -146,6 +168,10 @@ public class RideRevenueCalculator {
 
     }
 
+    /**
+     * Job 2 reducer: computes the trip revenue, aggregated by date, using the
+     * formula: tripRev = constFee + costPerKM * km
+     */
     public static class RevenueCalculatorReducer extends Reducer<Text, TripWritable, Text, DoubleWritable> {
 
         private final static double constFee = 3.5; // constant fee, USD
@@ -174,6 +200,7 @@ public class RideRevenueCalculator {
 
     }
 
+    // Configures job 1
     public static Job runTripConstructor(Path input, Path output) throws Exception {
 
         // Job definition
@@ -203,6 +230,7 @@ public class RideRevenueCalculator {
         return job;
     }
 
+    // Configures job 2
     public static Job runRevenueCalculator(Path input, Path output) throws Exception {
 
         // Job definition
@@ -227,6 +255,7 @@ public class RideRevenueCalculator {
         return job;
     }
 
+    // Computes the distance of two points on a sphere using the Haversine formula
     public static double flatSurfDist(Point2D p1, Point2D p2) {
         double R = 6371.009; // earth's radius in km
         double phi1 = Math.toRadians(p1.getLatitude()); // lat1 in rads

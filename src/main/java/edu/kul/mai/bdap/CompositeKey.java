@@ -8,9 +8,6 @@ import org.apache.hadoop.io.WritableComparable;
 
 /**
  * Composite key formed by a Natural Key (id) and Secondary Key (timestamp).
- * 
- * @author Ioannis Antoniadis
- *
  */
 public class CompositeKey implements WritableComparable<CompositeKey> {
 
