@@ -6,6 +6,9 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.Writable;
 
+/**
+ * Represents a segment of a trip ride
+ */
 public class SegmentWritable implements Writable {
 
   private int id; // taxi id

@@ -8,6 +8,9 @@ import java.util.ArrayList;
 
 import org.apache.hadoop.io.Writable;
 
+/**
+ * Represents a complete trip ride
+ */
 public class TripWritable implements Writable {
 
   private int id; // taxi id

@@ -1,5 +1,9 @@
 package edu.kul.mai.bdap;
 
+/**
+ * Represents a 2-dimensional point on the earth surface using its latitude and
+ * longitude coordinates
+ */
 public class Point2D {
   private double latitude, longitude;
 
