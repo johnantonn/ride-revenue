@@ -34,8 +34,8 @@ public class RideRevenueCalculator {
         private CompositeKey compositeKey = new CompositeKey();
         private SegmentWritable segment = new SegmentWritable();
         private final static long segDurUpperLim = 60 * 60 * 1000; // 1 hour in ms
-        private final static int minLat = 30; // 30 degrees
-        private final static int maxLon = -100; // -100 degrees
+        private final static double minLat = 30; // 30 degrees
+        private final static double maxLon = -100; // -100 degrees
 
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
             try {
@@ -55,8 +55,8 @@ public class RideRevenueCalculator {
         private boolean isValid(SegmentWritable seg) {
             if (seg.getStartStatus() || seg.getEndStatus()) {
                 long segDuration = seg.getEndTimestamp() - seg.getStartTimestamp();
-                return (seg.getStartPoint().getLatitude() > minLat) && (seg.getStartPoint().getLongitude() < -maxLon)
-                        && (seg.getEndPoint().getLatitude() > minLat) && (seg.getEndPoint().getLongitude() < -maxLon)
+                return (seg.getStartPoint().getLatitude() > minLat) && (seg.getStartPoint().getLongitude() < maxLon)
+                        && (seg.getEndPoint().getLatitude() > minLat) && (seg.getEndPoint().getLongitude() < maxLon)
                         && (segDuration < segDurUpperLim);
             } else {
                 return false;
